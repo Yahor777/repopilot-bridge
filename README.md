@@ -1,60 +1,72 @@
 # RepoPilot Bridge
 
-RepoPilot Bridge is a Windows-first local bridge between an AI coding agent and a local Git repository.
+**RepoPilot Bridge** — это локальный мост между AI coding agent и вашим Git-репозиторием.
 
-It exposes one selected repository through a temporary authenticated API, so an AI agent can read files, inspect project structure, write files, run development commands, inspect git diff, clean generated files, and commit completed work into a `promptql/*` branch.
+Проще говоря: вы запускаете RepoPilot Bridge на своём ПК, выбираете локальный проект, а ИИ-агент получает безопасный API-доступ к репозиторию. Он может читать код, изменять файлы, запускать тесты, смотреть diff, чистить временные файлы и делать commit через безопасный endpoint.
 
-It is designed for PromptQL custom API integrations, but the API is plain HTTP/OpenAPI and can be used by other tools.
+Проект создан для PromptQL custom API integrations, но API обычный HTTP/OpenAPI, поэтому его можно адаптировать и под другие AI-инструменты.
 
-## Current status
+---
 
-Public alpha.
+## Что умеет
 
-The current core has been doctor-tested for:
+- Подключает локальный Git-репозиторий к AI coding agent.
+- Работает через временный Cloudflare Tunnel.
+- Защищает доступ через `X-API-Key`.
+- Поддерживает режимы `Safe Review`, `Autopilot` и `Full Workspace`.
+- Блокирует чтение `.env`, приватных ключей, токенов и cookie.
+- Блокирует `git push` и опасные системные команды.
+- Позволяет агенту запускать dev-команды и тесты.
+- Позволяет делать commit только через безопасный `/git/commit`.
+- Работает только в `promptql/*` ветках для безопасных git-операций.
+- Ведёт audit logs и task reports.
+- Запоминает добавленные репозитории.
 
-- read-only mode;
-- Autopilot mode;
-- Full Workspace mode;
-- secret/path blocking;
-- unicode command output;
-- large command output captured to file;
-- git diff endpoints;
-- generated-file cleanup;
-- safe `/git/commit`;
-- task/session reports;
-- audit logs.
+---
 
-## Modes
+## Для чего это нужно
+
+RepoPilot Bridge полезен, если вы хотите дать ИИ-агенту доступ к локальному проекту, но не хотите просто открывать ему полный терминал без правил.
+
+Примеры задач:
+
+- найти и исправить баг;
+- добавить тесты;
+- провести ревью проекта;
+- исправить TypeScript / Node / Python / Gradle ошибки;
+- обновить документацию;
+- проверить diff перед commit;
+- автоматически сделать commit после успешных проверок.
+
+---
+
+## Режимы работы
 
 ### Safe Review
 
-Read-only mode. The agent can inspect the repository but cannot change files or run commands.
+Безопасный режим только для анализа.
+
+ИИ может читать структуру проекта и файлы, но не может изменять файлы или запускать команды.
 
 ### Autopilot
 
-Recommended mode. The agent can edit files, run development commands, clean generated files, and commit through the safe `/git/commit` endpoint.
+Рекомендуемый режим.
 
-Git mutations are restricted to `promptql/*` branches.
+ИИ может читать и изменять файлы, запускать разрешённые dev-команды, смотреть diff, чистить generated/temp файлы и делать commit через `/git/commit`.
+
+`git push` всё равно заблокирован.
 
 ### Full Workspace
 
-Advanced mode. Allows broader local repo commands, but still blocks hard-dangerous actions like `git push`, secret reads, SSH, system shutdown, disk formatting, and path escape.
+Расширенный режим для опытных пользователей.
 
-## Quick start
+Даёт больше свободы внутри репозитория, но всё ещё блокирует `git push`, чтение секретов, выход за пределы repo и опасные системные команды.
+
+---
+
+## Установка
+
+Откройте PowerShell в папке проекта и выполните:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\install.ps1
-powershell -ExecutionPolicy Bypass -File .\start.ps1
-```
-
-The launcher remembers added repositories in:
-
-```text
-%APPDATA%\RepoPilotBridge\repos.json
-```
-
-## Security
-
-Read [`SECURITY.md`](SECURITY.md) before using this with sensitive repositories.
-
-RepoPilot Bridge is safe-by-default, but it is still a local automation bridge. Build scripts inside a repository can execute arbitrary project-defined code.
