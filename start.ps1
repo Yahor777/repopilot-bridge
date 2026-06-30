@@ -117,7 +117,7 @@ Header
 Write-Host "Режим:" -ForegroundColor Cyan
 Write-Host "  1. Безопасный просмотр     только чтение"
 Write-Host "  2. Автопилот               новая ветка promptql/*, код + тесты + commit"
-Write-Host "  3. Продолжить              продолжить текущую ветку"
+Write-Host "  3. Продолжить сессию       продолжить текущую promptql/* ветку"
 Write-Host "  4. Полный режим            расширенный режим внутри репозитория"
 Write-Host "  5. Проверка doctor"
 Write-Host "  6. Остановить серверы"
@@ -130,15 +130,17 @@ if ($modeChoice -eq "6") { Stop-Old; Write-Host "Серверы остановл
 $repos = @(Load-Repos)
 
 Header
-Write-Host "Репозитории:" -ForegroundColor Cyan
+Write-Host "Репозитории / проекты:" -ForegroundColor Cyan
 for ($i=0; $i -lt $repos.Count; $i++) { Write-Host ("  {0}. {1}" -f ($i+1), $repos[$i]) }
 Write-Host ""
-Write-Host "  N. Добавить новый путь"
+Write-Host "  N. Добавить новый путь к проекту"
 Write-Host ""
 $repoChoice = Read-Host "Выбор"
+$repoChoice = [string]$repoChoice
+$typedPath = $repoChoice.Trim().Trim([char]34)
 
 if ($repoChoice -match "^[Nn]$") {
-    $repo = Read-Host "Полный путь к git-репозиторию"
+    $repo = Read-Host "Полный путь к проекту / git-репозиторию"
     if (!(Test-Path -LiteralPath $repo)) { throw "Папка не найдена: $repo" }
     if (!(Test-Path (Join-Path $repo ".git"))) { throw "Это не git-репозиторий: $repo" }
     $repo = (Resolve-Path -LiteralPath $repo).Path
@@ -149,7 +151,12 @@ if ($repoChoice -match "^[Nn]$") {
     $repo = [string]$repos[$idx]
     if (!(Test-Path -LiteralPath $repo)) { throw "Репозиторий больше не существует: $repo" }
     Save-Repo $repo
-} else { throw "Invalid repository choice" }
+} elseif ($typedPath -and (Test-Path -LiteralPath $typedPath) -and (Test-Path -LiteralPath (Join-Path $typedPath ".git"))) {
+    $repo = (Resolve-Path -LiteralPath $typedPath).Path
+    Save-Repo $repo
+} else {
+    throw "Неверный выбор. Введите номер из списка, N для добавления проекта или полный путь к git-проекту."
+}
 
 $task = Read-Host "Название задачи"
 if (!$task) { $task = "Задача RepoPilot" }
@@ -332,3 +339,4 @@ $apiKey
     }
     elseif ($x -match "^[Qq]$") { break }
 }
+
