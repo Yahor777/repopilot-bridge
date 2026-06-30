@@ -154,3 +154,21 @@ Write-Host ""
 if (Ask-Yes "Run doctor check now?" $true) {
     powershell -ExecutionPolicy Bypass -File (Join-Path $Root "doctor.ps1")
 }
+
+# RepoPilot global command setup
+$AppRoot = Join-Path $env:LOCALAPPDATA "RepoPilotBridge"
+$BinDir = Join-Path $AppRoot "bin"
+$LinkRoot = Join-Path $AppRoot "app"
+$CmdPath = Join-Path $BinDir "repopilot.cmd"
+New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
+if (Test-Path $LinkRoot) { Remove-Item $LinkRoot -Force -Recurse -ErrorAction SilentlyContinue }
+New-Item -ItemType Junction -Path $LinkRoot -Target $Root | Out-Null
+$CmdLines = @("@echo off", 'powershell -NoProfile -ExecutionPolicy Bypass -File "%LOCALAPPDATA%\RepoPilotBridge\app\start.ps1" %*')
+[System.IO.File]::WriteAllLines($CmdPath, $CmdLines, [System.Text.Encoding]::ASCII)
+$UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
+if (($UserPath -split ";") -notcontains $BinDir) {
+    $NewPath = (($UserPath.TrimEnd(";")) + ";" + $BinDir).TrimStart(";")
+    [Environment]::SetEnvironmentVariable("Path", $NewPath, "User")
+    $env:Path = $env:Path + ";" + $BinDir
+}
+Write-Host "Global command installed: repopilot" -ForegroundColor Green
