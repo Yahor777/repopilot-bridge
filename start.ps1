@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -114,45 +114,45 @@ function Header {
 Ensure-Installed
 
 Header
-Write-Host "Mode:" -ForegroundColor Cyan
-Write-Host "  1. Safe Review     read only"
-Write-Host "  2. Autopilot       new promptql/* branch, code + tests + commit"
-Write-Host "  3. Resume          continue current branch"
-Write-Host "  4. Full Workspace  advanced mode inside repo"
-Write-Host "  5. Doctor check"
-Write-Host "  6. Stop servers"
+Write-Host "Режим:" -ForegroundColor Cyan
+Write-Host "  1. Безопасный просмотр     только чтение"
+Write-Host "  2. Автопилот               новая ветка promptql/*, код + тесты + commit"
+Write-Host "  3. Продолжить              продолжить текущую ветку"
+Write-Host "  4. Полный режим            расширенный режим внутри репозитория"
+Write-Host "  5. Проверка doctor"
+Write-Host "  6. Остановить серверы"
 Write-Host ""
-$modeChoice = Read-Host "Choice"
+$modeChoice = Read-Host "Выбор"
 
 if ($modeChoice -eq "5") { powershell -ExecutionPolicy Bypass -File (Join-Path $Root "doctor.ps1"); exit }
-if ($modeChoice -eq "6") { Stop-Old; Write-Host "Servers stopped." -ForegroundColor Green; exit }
+if ($modeChoice -eq "6") { Stop-Old; Write-Host "Серверы остановлены." -ForegroundColor Green; exit }
 
 $repos = @(Load-Repos)
 
 Header
-Write-Host "Repositories:" -ForegroundColor Cyan
+Write-Host "Репозитории:" -ForegroundColor Cyan
 for ($i=0; $i -lt $repos.Count; $i++) { Write-Host ("  {0}. {1}" -f ($i+1), $repos[$i]) }
 Write-Host ""
-Write-Host "  N. Add new path"
+Write-Host "  N. Добавить новый путь"
 Write-Host ""
-$repoChoice = Read-Host "Choice"
+$repoChoice = Read-Host "Выбор"
 
 if ($repoChoice -match "^[Nn]$") {
-    $repo = Read-Host "Full path to git repository"
-    if (!(Test-Path -LiteralPath $repo)) { throw "Folder not found: $repo" }
-    if (!(Test-Path (Join-Path $repo ".git"))) { throw "Not a git repository: $repo" }
+    $repo = Read-Host "Полный путь к git-репозиторию"
+    if (!(Test-Path -LiteralPath $repo)) { throw "Папка не найдена: $repo" }
+    if (!(Test-Path (Join-Path $repo ".git"))) { throw "Это не git-репозиторий: $repo" }
     $repo = (Resolve-Path -LiteralPath $repo).Path
     Save-Repo $repo
 } elseif ($repoChoice -match "^\d+$") {
     $idx = [int]$repoChoice - 1
     if ($idx -lt 0 -or $idx -ge $repos.Count) { throw "Invalid repository number" }
     $repo = [string]$repos[$idx]
-    if (!(Test-Path -LiteralPath $repo)) { throw "Repository no longer exists: $repo" }
+    if (!(Test-Path -LiteralPath $repo)) { throw "Репозиторий больше не существует: $repo" }
     Save-Repo $repo
 } else { throw "Invalid repository choice" }
 
-$task = Read-Host "Task name"
-if (!$task) { $task = "RepoPilot task" }
+$task = Read-Host "Название задачи"
+if (!$task) { $task = "Задача RepoPilot" }
 
 $mode = "read_only"
 $commitAllowed = "false"
@@ -164,12 +164,12 @@ switch ($modeChoice) {
     "3" {
         $mode = "autopilot"; $commitAllowed = "true"
         if (-not $branch.StartsWith("promptql/")) {
-            Write-Host "Current branch is not promptql/*: $branch" -ForegroundColor Yellow
-            if (!(Ask-Yes "Continue on this branch?" $false)) { exit }
+            Write-Host "Текущая ветка не promptql/*: $branch" -ForegroundColor Yellow
+            if (!(Ask-Yes "Продолжить на этой ветке?" $false)) { exit }
         }
     }
     "4" { $mode = "full"; $commitAllowed = "true"; $branch = New-Branch $repo "full" }
-    default { throw "Invalid mode" }
+    default { throw "Неверный режим" }
 }
 
 $apiKey = (([guid]::NewGuid().ToString("N")) + ([guid]::NewGuid().ToString("N")))
@@ -205,7 +205,7 @@ Start-Process powershell -ArgumentList @(
     "`$Host.UI.RawUI.WindowTitle='RepoPilot tunnel'; `$Host.UI.RawUI.ForegroundColor='Cyan'; & '$cf' tunnel --url http://localhost:8787 2>&1 | Tee-Object -FilePath '$TunnelLog'"
 )
 
-Write-Host "Waiting for Cloudflare tunnel..." -ForegroundColor Yellow
+Write-Host "Ожидание Cloudflare tunnel..." -ForegroundColor Yellow
 $tunnelUrl = $null
 for ($i=0; $i -lt 80; $i++) {
     Start-Sleep -Seconds 1
@@ -215,12 +215,12 @@ for ($i=0; $i -lt 80; $i++) {
         if ($m.Success) { $tunnelUrl = $m.Value; break }
     }
 }
-if (!$tunnelUrl) { throw "Could not get tunnel URL. Check RepoPilot tunnel window." }
+if (!$tunnelUrl) { throw "Не удалось получить tunnel URL. Проверьте окно RepoPilot tunnel." }
 
 $connectPrompt = @"
-I started RepoPilot Bridge.
+Я запустил RepoPilot Bridge.
 
-Update custom API integration:
+Обнови custom API integration:
 
 - provider id: repo-tools
 - protocol: api
@@ -231,54 +231,54 @@ Update custom API integration:
 - credential header: X-API-Key
 - prefix: empty
 
-Do not ask me to send the key in normal chat. Use a secure connect card.
+Не проси отправлять ключ обычным сообщением в чат. Используй защищённую карточку подключения.
 
-Session:
-- mode: $mode
-- branch: $branch
-- task: $task
+Сессия:
+- режим: $mode
+- ветка: $branch
+- задача: $task
 - commitAllowed: $commitAllowed
 - pushAllowed: false
 
-Before starting:
+Перед началом:
 1. GET /session
 2. GET /health
 3. GET /git/status
 
-Rules:
-- work autonomously inside the task;
-- use capture=file for large commands;
-- use /git/cleanup-generated before commit;
-- use /git/commit for commit;
-- never git push.
+Правила:
+- работай автономно внутри задачи;
+- для большого вывода используй capture=file;
+- перед commit используй /git/cleanup-generated;
+- для commit используй /git/commit;
+- никогда не делай git push.
 "@
 
 $taskPrompt = @"
-Autopilot task:
+Задача для автопилота:
 
-Continue the current task through RepoPilot Bridge.
+Продолжай текущую задачу через RepoPilot Bridge.
 
-First:
+Сначала:
 1. GET /session
 2. GET /git/status
 3. GET /git/changed-files
 
-Then work autonomously.
+Дальше работай автономно.
 
-Allowed:
-- read/write files in the repo;
-- run dev commands;
-- run tests/build;
-- clean generated files through /git/cleanup-generated;
-- commit through /git/commit if checks are green.
+Разрешено:
+- читать и писать файлы в репозитории;
+- запускать dev-команды;
+- запускать тесты/build;
+- чистить generated files через /git/cleanup-generated;
+- делать commit через /git/commit, если проверки зелёные.
 
-Forbidden:
+Запрещено:
 - git push;
-- reading secrets;
-- leaving repo root.
+- чтение секретов;
+- выход за пределы repo root.
 
-At the end show:
-- commit hash if committed;
+В конце покажи:
+- commit hash, если был commit;
 - git status;
 - git log -1 --stat;
 - task report.
@@ -286,7 +286,7 @@ At the end show:
 
 Clear-Host
 Write-Host ""
-Write-Host "RepoPilot Bridge ready" -ForegroundColor Green
+Write-Host "RepoPilot Bridge готов" -ForegroundColor Green
 Write-Host "----------------------------------------" -ForegroundColor DarkGreen
 Write-Host "Repo       : $repo"
 Write-Host "Mode       : $mode"
@@ -297,26 +297,26 @@ Write-Host ""
 Write-Host "X-API-Key:" -ForegroundColor Yellow
 Write-Host $apiKey -ForegroundColor Yellow
 Write-Host ""
-Write-Host "CONNECT PROMPT" -ForegroundColor Cyan
+Write-Host "PROMPT ДЛЯ ПОДКЛЮЧЕНИЯ" -ForegroundColor Cyan
 Write-Host $connectPrompt -ForegroundColor Gray
 Write-Host ""
-Write-Host "TASK PROMPT" -ForegroundColor Cyan
+Write-Host "PROMPT ДЛЯ ЗАДАЧИ" -ForegroundColor Cyan
 Write-Host $taskPrompt -ForegroundColor Gray
 Write-Host ""
 
 while ($true) {
     Write-Host ""
-    Write-Host "Copy:"
-    Write-Host "  C = connect prompt"
-    Write-Host "  T = task prompt"
-    Write-Host "  K = key"
-    Write-Host "  A = all"
-    Write-Host "  Q = quit"
-    $x = Read-Host "Choice"
+    Write-Host "Копировать:"
+    Write-Host "  C = prompt подключения"
+    Write-Host "  T = prompt задачи"
+    Write-Host "  K = ключ"
+    Write-Host "  A = всё"
+    Write-Host "  Q = выйти"
+    $x = Read-Host "Выбор"
 
-    if ($x -match "^[Cc]$") { $connectPrompt | Set-Clipboard; Write-Host "Copied connect prompt." -ForegroundColor Green }
-    elseif ($x -match "^[Tt]$") { $taskPrompt | Set-Clipboard; Write-Host "Copied task prompt." -ForegroundColor Green }
-    elseif ($x -match "^[Kk]$") { $apiKey | Set-Clipboard; Write-Host "Copied key." -ForegroundColor Green }
+    if ($x -match "^[Cc]$") { $connectPrompt | Set-Clipboard; Write-Host "Prompt подключения скопирован." -ForegroundColor Green }
+    elseif ($x -match "^[Tt]$") { $taskPrompt | Set-Clipboard; Write-Host "Prompt задачи скопирован." -ForegroundColor Green }
+    elseif ($x -match "^[Kk]$") { $apiKey | Set-Clipboard; Write-Host "Ключ скопирован." -ForegroundColor Green }
     elseif ($x -match "^[Aa]$") {
         @"
 CONNECT PROMPT:
@@ -328,7 +328,7 @@ $taskPrompt
 X-API-KEY:
 $apiKey
 "@ | Set-Clipboard
-        Write-Host "Copied all." -ForegroundColor Green
+        Write-Host "Всё скопировано." -ForegroundColor Green
     }
     elseif ($x -match "^[Qq]$") { break }
 }
