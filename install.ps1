@@ -172,3 +172,52 @@ if (($UserPath -split ";") -notcontains $BinDir) {
     $env:Path = $env:Path + ";" + $BinDir
 }
 Write-Host "Global command installed: repopilot" -ForegroundColor Green
+
+# FINAL_REPOPILOT_GLOBAL_INSTALL_FIX
+$AppRoot = Join-Path $env:LOCALAPPDATA "RepoPilotBridge"
+$App = Join-Path $AppRoot "app"
+$Bin = Join-Path $AppRoot "bin"
+New-Item -ItemType Directory -Force -Path $AppRoot | Out-Null
+New-Item -ItemType Directory -Force -Path $Bin | Out-Null
+if ((Resolve-Path $Root).Path -ne (Resolve-Path $App -ErrorAction SilentlyContinue).Path) {
+    if (Test-Path $App) { Remove-Item $App -Recurse -Force -ErrorAction SilentlyContinue }
+    New-Item -ItemType Directory -Force -Path $App | Out-Null
+    Get-ChildItem $Root -Force | Where-Object { $_.Name -notin @(".git", ".venv") } | ForEach-Object {
+        Copy-Item $_.FullName (Join-Path $App $_.Name) -Recurse -Force
+    }
+} else {
+    $App = (Resolve-Path $Root).Path
+}
+$CfExe = $null
+$cmd = Get-Command cloudflared.exe -ErrorAction SilentlyContinue
+if ($cmd) { $CfExe = $cmd.Source }
+if (!$CfExe) {
+    $pkg = Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages" -Recurse -Filter "cloudflared.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($pkg) { $CfExe = $pkg.FullName }
+}
+if ($CfExe) {
+    Copy-Item $CfExe (Join-Path $Bin "cloudflared.exe") -Force
+}
+$RepopilotPs1 = Join-Path $Bin "repopilot.ps1"
+$RepopilotCmd = Join-Path $Bin "repopilot.cmd"
+Set-Content $RepopilotPs1 -Encoding UTF8 -Value @(
+  '$ErrorActionPreference = "Stop"',
+  '$AppRoot = Join-Path $env:LOCALAPPDATA "RepoPilotBridge"',
+  '$Bin = Join-Path $AppRoot "bin"',
+  '$Root = Join-Path $AppRoot "app"',
+  '$env:Path = "$Bin;" + $env:Path',
+  'Set-Location $Root',
+  '& (Join-Path $Root "start.ps1") @args',
+  'exit $LASTEXITCODE'
+)
+Set-Content $RepopilotCmd -Encoding ASCII -Value @(
+  '@echo off',
+  'powershell -NoProfile -ExecutionPolicy Bypass -File "%LOCALAPPDATA%\RepoPilotBridge\bin\repopilot.ps1" %*'
+)
+$UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
+if (($UserPath -split ";") -notcontains $Bin) {
+    $NewPath = (($UserPath.TrimEnd(";")) + ";" + $Bin).TrimStart(";")
+    [Environment]::SetEnvironmentVariable("Path", $NewPath, "User")
+    $env:Path = "$Bin;" + $env:Path
+}
+Write-Host "Global command installed: repopilot" -ForegroundColor Green
