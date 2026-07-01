@@ -205,10 +205,54 @@ def hard_block_reason(cmd: str) -> Optional[str]:
     return None
 def autopilot_allowed(cmd: str) -> bool:
     c = cmd.lower().strip()
-    for bad in AUTOPILOT_BLOCKED_RAW_GIT:
-        if c.startswith(bad):
+
+    # Autopilot is blocklist-based:
+    # the model may run normal project/dev commands,
+    # RepoPilot only blocks dangerous git/system/secret operations.
+    blocked_patterns = [
+        r"\bgit\s+push\b",
+        r"\bgit\s+add\b",
+        r"\bgit\s+commit\b",
+        r"\bgit\s+reset\b",
+        r"\bgit\s+clean\b",
+        r"\bgit\s+checkout\b",
+        r"\bgit\s+switch\b",
+        r"\bgit\s+merge\b",
+        r"\bgit\s+rebase\b",
+        r"\bgit\s+tag\b",
+        r"\bgit\s+remote\b",
+
+        r"\bssh\b",
+        r"\bscp\b",
+        r"\bsftp\b",
+
+        r"\bshutdown\b",
+        r"\brestart-computer\b",
+        r"\bdiskpart\b",
+        r"\bformat\b",
+        r"\bbcdedit\b",
+
+        r"\bpowershell\b.*\s-enc\b",
+        r"\bpowershell\b.*encodedcommand",
+
+        r"\bremove-item\b.*\s-recurse\b.*\s-force\b",
+        r"\brm\s+-rf\b",
+        r"\brmdir\s+/s\b",
+        r"\brd\s+/s\b",
+        r"\bdel\s+/s\b",
+        r"\berase\s+/s\b",
+
+        r"\bnpm\s+publish\b",
+        r"\bpip\s+upload\b",
+        r"\btwine\s+upload\b",
+    ]
+
+    for pattern in blocked_patterns:
+        if re.search(pattern, c, flags=re.IGNORECASE):
             return False
-    return any(c.startswith(prefix) for prefix in AUTOPILOT_ALLOWED_PREFIXES)
+
+    return True
+
 def decode_bytes(data: Optional[bytes]) -> str:
     if not data:
         return ""
@@ -702,4 +746,7 @@ def audit_json(x_api_key: Optional[str] = Header(None, alias="X-API-Key"), tail:
 def session_report(x_api_key: Optional[str] = Header(None, alias="X-API-Key")):
     check_auth(x_api_key)
     return task_report(x_api_key)
+
+
+
 
